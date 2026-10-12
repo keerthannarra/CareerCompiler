@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional, Any
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 class JobDescriptionCreate(BaseModel):
     display_name: Optional[str] = Field(None, description="Optional name for this JD")
@@ -9,6 +9,8 @@ class JobDescriptionCreate(BaseModel):
     raw_text: str = Field(..., description="The raw job description text")
 
 class JobDescriptionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     user_id: uuid.UUID
     display_name: Optional[str] = None
@@ -17,6 +19,3 @@ class JobDescriptionResponse(BaseModel):
     extracted_data: Optional[Any] = None
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True

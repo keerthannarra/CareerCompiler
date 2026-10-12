@@ -19,15 +19,17 @@ class ParsedDateRange(BaseModel):
     raw: str = Field(description="The raw date string from the resume")
 
 class ParsedEntry(BaseModel):
-    title: str = Field(description="Job title, degree, or project name")
-    organization: str = Field(description="Company, university, or organization name")
-    location: str = Field(description="Location of the entry")
+    title: str = Field(description="Degree, job title, or project name")
+    organization: str = Field(description="Institute, company, or university name")
+    location: Optional[str] = Field(default="", description="Location of the entry")
+    subtitle: Optional[str] = Field(default="", description="Specialization, supervisor, or sub-details")
+    gpa: Optional[str] = Field(default="", description="CPI, GPA, or percentage if present (e.g. '9.25' or '10.0')")
     dates: ParsedDateRange
     bullets: List[ParsedBullet] = Field(default_factory=list)
 
 class ParsedSection(BaseModel):
-    name: str = Field(description="Original section name (e.g., 'Professional Experience', 'Education')")
-    normalized_name: str = Field(description="Normalized section name (one of: experience, education, projects, certifications, summary)")
+    name: str = Field(description="Original section name (e.g., 'Professional Experience', 'Education', 'Positions of Responsibility', 'Achievements')")
+    normalized_name: str = Field(description="Normalized section name (one of: experience, education, projects, leadership, achievements, certifications, summary)")
     entries: List[ParsedEntry] = Field(default_factory=list)
 
 class ParsedSkillItem(BaseModel):

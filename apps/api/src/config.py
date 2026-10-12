@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # ── LLM ─────────────────────────────────────────────────────────────────
     groq_api_key: str = ""
     groq_model_primary: str = "llama-3.3-70b-versatile"
-    groq_model_fast: str = "llama-3.1-8b-instant"
+    groq_model_fast: str = "llama-3.3-70b-versatile"
 
     # ── File Storage ─────────────────────────────────────────────────────────
     upload_dir: str = "./uploads"

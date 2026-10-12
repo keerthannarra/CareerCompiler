@@ -64,41 +64,59 @@ def _compact_job_description(jd: Any) -> str:
 
 def _compact_canonical_profile(profile: Any) -> str:
     if not profile or not isinstance(profile, dict):
-        return str(profile)[:2500]
+        return str(profile)[:4000]
 
     parts = []
     contact = profile.get("contact") or {}
-    if contact.get("name"):
-        parts.append(f"Candidate: {contact.get('name')}")
+    name_obj = contact.get("name")
+    if isinstance(name_obj, dict):
+        parts.append(f"Candidate: {name_obj.get('value', '')}")
+    elif name_obj:
+        parts.append(f"Candidate: {name_obj}")
 
-    skills = profile.get("skills") or []
-    if skills:
-        if isinstance(skills, list):
-            skills_str = ", ".join(s if isinstance(s, str) else s.get("name", "") for s in skills[:30])
-            parts.append(f"Skills: {skills_str}")
+    # Skills: in canonical profile, skills is a list of skill groups with category and items
+    skill_groups = profile.get("skills") or []
+    if skill_groups and isinstance(skill_groups, list):
+        skill_lines = []
+        for grp in skill_groups:
+            cat = grp.get("category", "General")
+            items = [item.get("name") if isinstance(item, dict) else str(item) for item in grp.get("items", [])]
+            if items:
+                skill_lines.append(f"{cat}: {', '.join(items)}")
+        if skill_lines:
+            parts.append("Skills:\n" + "\n".join(f"- {s}" for s in skill_lines))
 
+    # Sections: in canonical profile, sections have 'name', 'normalized_name', and 'entries'
     sections = profile.get("sections") or []
     for sec in sections:
-        title = sec.get("title") or sec.get("name") or "Section"
-        items = sec.get("items") or []
+        title = sec.get("name") or sec.get("title") or "Section"
+        entries = sec.get("entries") or sec.get("items") or []
         sec_lines = [f"\n### {title}"]
-        for item in items[:5]:
-            if isinstance(item, str):
-                sec_lines.append(f"- {item}")
-            elif isinstance(item, dict):
-                heading = item.get("title") or item.get("role") or item.get("company") or ""
-                sub = item.get("subtitle") or item.get("organization") or ""
-                bullets = item.get("bullets") or item.get("description") or []
-                if heading or sub:
-                    sec_lines.append(f"**{heading}** ({sub})" if sub else f"**{heading}**")
+        for ent in entries[:8]:
+            if isinstance(ent, str):
+                sec_lines.append(f"- {ent}")
+            elif isinstance(ent, dict):
+                heading = ent.get("title") or ent.get("role") or ""
+                sub = ent.get("organization") or ent.get("company") or ""
+                dates = ent.get("dates", {})
+                date_str = dates.get("raw") or f"{dates.get('start', '')} - {dates.get('end', '')}".strip(" -")
+                loc = ent.get("location", "")
+                
+                header_parts = [p for p in [heading, sub, date_str, loc] if p]
+                if header_parts:
+                    sec_lines.append(f"**{' | '.join(header_parts)}**")
+                
+                bullets = ent.get("bullets") or ent.get("description") or []
                 if isinstance(bullets, list):
-                    for b in bullets[:6]:
-                        sec_lines.append(f"  - {b}")
+                    for b in bullets[:8]:
+                        text = b.get("text") if isinstance(b, dict) else str(b)
+                        if text:
+                            sec_lines.append(f"  - {text}")
                 elif isinstance(bullets, str):
                     sec_lines.append(f"  - {bullets}")
         parts.append("\n".join(sec_lines))
 
-    return "\n".join(parts) if parts else str(profile)[:3000]
+    return "\n".join(parts) if parts else str(profile)[:4000]
 
 
 class MatchingEngine:

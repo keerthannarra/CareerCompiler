@@ -1,7 +1,9 @@
 import asyncio
 import httpx
 import json
-from generate_dummy_pdf import generate_pdf
+from pathlib import Path
+
+SAMPLE_PDF = Path("test_sample_resume.pdf")
 
 async def run_test():
     url_base = "http://localhost:8000/api/v1"
@@ -10,10 +12,9 @@ async def run_test():
     }
 
     async with httpx.AsyncClient(timeout=30.0) as client:
-        print("\n=== [Phase 1] Generate and Upload Master Resume ===")
-        generate_pdf("e2e_sample_resume.pdf")
-        with open("e2e_sample_resume.pdf", "rb") as f:
-            files = {"pdf_file": ("e2e_sample_resume.pdf", f, "application/pdf")}
+        print("\n=== [Phase 1] Upload Master Resume ===")
+        with open(SAMPLE_PDF, "rb") as f:
+            files = {"pdf_file": ("test_sample_resume.pdf", f, "application/pdf")}
             data = {"display_name": "E2E Master Resume"}
             res = await client.post(f"{url_base}/master-resumes", headers=headers, data=data, files=files)
         print("Upload Status:", res.status_code)
@@ -82,7 +83,7 @@ async def run_test():
             await asyncio.sleep(2)
             
         print("\n=== [Phase 4] Compile Document ===")
-        res7 = await client.post(f"{url_base}/documents/compile?tailoring_plan_id={plan_id}", headers=headers)
+        res7 = await client.post(f"{url_base}/documents/compile", headers=headers, json={"tailoring_plan_id": plan_id})
         print("Compile Trigger Status:", res7.status_code)
         if res7.status_code != 202:
             print("Error:", res7.text)

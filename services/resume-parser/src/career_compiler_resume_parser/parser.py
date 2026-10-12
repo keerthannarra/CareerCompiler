@@ -101,6 +101,8 @@ class PdfParser:
                     "title": ent.get("title", ""),
                     "organization": ent.get("organization", ""),
                     "location": ent.get("location", ""),
+                    "subtitle": ent.get("subtitle", ""),
+                    "gpa": ent.get("gpa", ""),
                     "dates": ent.get("dates", {}),
                     "source_ref": _dummy_ref(),
                     "bullets": []

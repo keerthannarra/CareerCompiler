@@ -19,11 +19,14 @@ from src.config import get_settings
 
 settings = get_settings()
 
-# Use a test database URL (SQLite async for unit tests, Postgres for integration)
-TEST_DB_URL = "sqlite+aiosqlite:///./test_career_compiler.db"
-
-FIXTURE_DIR = Path(__file__).parent.parent.parent.parent / "services" / "resume-parser" / "tests" / "fixtures"
-SAMPLE_TEX = FIXTURE_DIR / "sample_moderncv.tex"
+MINIMAL_PDF = (
+    b"%PDF-1.4\n"
+    b"1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+    b"2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n"
+    b"3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\n"
+    b"xref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \n"
+    b"trailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF\n"
+)
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -67,13 +70,11 @@ async def test_root(client):
 
 
 @pytest.mark.anyio
-@pytest.mark.skipif(not SAMPLE_TEX.exists(), reason="Sample fixture not found")
 async def test_upload_master_resume(client):
-    """Test uploading a real .tex file."""
-    tex_content = SAMPLE_TEX.read_bytes()
+    """Test uploading a real .pdf file."""
     response = await client.post(
         "/api/v1/master-resumes",
-        files={"tex_file": ("sample_moderncv.tex", tex_content, "text/plain")},
+        files={"pdf_file": ("test_resume.pdf", MINIMAL_PDF, "application/pdf")},
         data={"display_name": "Test Resume"},
     )
     assert response.status_code == 201, response.text
@@ -84,21 +85,21 @@ async def test_upload_master_resume(client):
 
 
 @pytest.mark.anyio
-async def test_upload_requires_tex_file(client):
-    """Must reject non-.tex files."""
+async def test_upload_requires_pdf_file(client):
+    """Must reject non-.pdf files."""
     response = await client.post(
         "/api/v1/master-resumes",
-        files={"tex_file": ("resume.pdf", b"not a tex file", "application/pdf")},
+        files={"pdf_file": ("resume.txt", b"not a pdf file", "text/plain")},
     )
     assert response.status_code == 400
 
 
 @pytest.mark.anyio
 async def test_upload_rejects_empty_file(client):
-    """Must reject empty files."""
+    """Must reject empty files or non-pdf."""
     response = await client.post(
         "/api/v1/master-resumes",
-        files={"tex_file": ("resume.tex", b"", "text/plain")},
+        files={"pdf_file": ("resume.png", b"", "image/png")},
     )
     assert response.status_code == 400
 
