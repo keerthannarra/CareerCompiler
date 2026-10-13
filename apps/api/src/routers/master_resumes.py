@@ -221,4 +221,41 @@ async def get_master_resume(
     }
 
 
+@router.delete(
+    "/{resume_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a master resume",
+)
+async def delete_master_resume(
+    resume_id: uuid.UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(MasterResume).where(MasterResume.id == resume_id, MasterResume.user_id == current_user.id)
+    res = await db.execute(stmt)
+    resume = res.scalar_one_or_none()
+    if not resume:
+        raise HTTPException(status_code=404, detail="Master resume not found")
+        
+    from ..models.canonical_profile import CanonicalProfile
+    from ..models.tailoring_plan import TailoringPlan
+    from ..models.compiled_resume import CompiledResume
+    
+    plans_res = await db.execute(select(TailoringPlan).where(TailoringPlan.master_resume_id == resume_id))
+    for p in plans_res.scalars().all():
+        docs_res = await db.execute(select(CompiledResume).where(CompiledResume.tailoring_plan_id == p.id))
+        for d in docs_res.scalars().all():
+            await db.delete(d)
+        await db.delete(p)
+        
+    prof_res = await db.execute(select(CanonicalProfile).where(CanonicalProfile.master_resume_id == resume_id))
+    for prof in prof_res.scalars().all():
+        await db.delete(prof)
+        
+    await db.delete(resume)
+    await db.commit()
+    return None
+
+
+
 

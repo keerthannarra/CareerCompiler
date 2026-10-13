@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from '../../../../components/Button';
 import { ProgressSteps, StepStatus } from '../../../../components/ProgressSteps';
+import { AtsScorecard, AtsEvaluation } from '../../../../components/AtsScorecard';
 
 type WorkflowStep = {
   id: string;
@@ -17,6 +18,8 @@ export default function TailorDashboard({ params }: { params: Promise<{ resumeId
   const [docId, setDocId] = useState<string | null>(null);
   const [isFailed, setIsFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [evaluation, setEvaluation] = useState<AtsEvaluation | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   
   // Ref to prevent strict mode double-execution issues with triggering APIs
   const planCreated = useRef(false);
@@ -148,8 +151,21 @@ export default function TailorDashboard({ params }: { params: Promise<{ resumeId
                 isDocReady = true;
                 setDocId(compiledId);
                 updateStep('compile', 'complete', 'PDF generated successfully');
+
+                // Fetch ATS Evaluation
+                try {
+                  const evalRes = await fetch(`/api/documents/${compiledId}/evaluation`);
+                  if (evalRes.ok) {
+                    const evalData = await evalRes.json();
+                    setEvaluation(evalData);
+                  }
+                } catch (e) {
+                  console.error('Failed to load ATS evaluation', e);
+                }
+
               } else if (data.status === 'failed') {
-                throw new Error('PDF Compilation failed');
+                const errMsg = data.validation_results?.compilation_error || 'PDF Compilation failed';
+                throw new Error(errMsg);
               } else {
                 await new Promise(r => setTimeout(r, 2000));
               }
@@ -176,8 +192,8 @@ export default function TailorDashboard({ params }: { params: Promise<{ resumeId
   const isAllComplete = steps.every(s => s.status === 'complete');
 
   return (
-    <div className="container animate-fade-in" style={{ maxWidth: '700px', marginTop: '2rem' }}>
-      <div style={{ marginBottom: '3rem', textAlign: 'center' }}>
+    <div className="container animate-fade-in" style={{ maxWidth: '840px', marginTop: '2rem', paddingBottom: '4rem' }}>
+      <div style={{ marginBottom: '2.5rem', textAlign: 'center' }}>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
           Compiling <span className="text-gradient">Your Resume</span>
         </h1>
@@ -201,44 +217,75 @@ export default function TailorDashboard({ params }: { params: Promise<{ resumeId
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', opacity: isAllComplete ? 1 : 0, transform: isAllComplete ? 'translateY(0)' : 'translateY(10px)', transition: 'all 0.5s ease', pointerEvents: isAllComplete ? 'auto' : 'none' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {docId && (
-            <a href={`/api/documents/${docId}/download`} download>
-              <Button style={{ padding: '0.85rem 1.75rem', fontSize: '1.05rem' }}>
-                Download Tailored PDF
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-              </Button>
-            </a>
-          )}
-          {resumeId && (
-            <a href={`/jobs/${resumeId}`}>
-              <Button variant="secondary" style={{ padding: '0.85rem 1.5rem', fontSize: '1rem' }}>
-                Tailor for Another Job
+      {/* Action Buttons & PDF Downloads */}
+      {isAllComplete && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            {docId && (
+              <a href={`/api/documents/${docId}/download`} download>
+                <Button style={{ padding: '0.85rem 1.75rem', fontSize: '1.05rem' }}>
+                  Download Tailored PDF
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </Button>
+              </a>
+            )}
+
+            {docId && (
+              <Button 
+                variant="secondary"
+                onClick={() => setShowPreview(!showPreview)}
+                style={{ padding: '0.85rem 1.5rem', fontSize: '1rem' }}
+              >
+                {showPreview ? 'Hide Preview' : 'Preview PDF in Browser'}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="12" y1="18" x2="12" y2="12" />
-                  <line x1="9" y1="15" x2="15" y2="15" />
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
                 </svg>
               </Button>
+            )}
+
+            {resumeId && (
+              <a href={`/jobs/${resumeId}`}>
+                <Button variant="outline" style={{ padding: '0.85rem 1.5rem', fontSize: '1rem' }}>
+                  Tailor for Another Job
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="12" y1="18" x2="12" y2="12" />
+                    <line x1="9" y1="15" x2="15" y2="15" />
+                  </svg>
+                </Button>
+              </a>
+            )}
+
+            <a href="/resumes">
+              <Button variant="outline" style={{ padding: '0.85rem 1.5rem', fontSize: '1rem' }}>
+                My Resumes Dashboard
+              </Button>
             </a>
+          </div>
+
+          {/* Embedded PDF Preview */}
+          {showPreview && docId && (
+            <div className="glass-panel animate-fade-in" style={{ width: '100%', height: '800px', overflow: 'hidden', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', marginTop: '1rem' }}>
+              <iframe 
+                src={`/api/documents/${docId}/download`} 
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="Tailored Resume Preview"
+              />
+            </div>
           )}
-          <a href="/">
-            <Button variant="outline" style={{ padding: '0.85rem 1.5rem', fontSize: '1rem' }}>
-              Upload New Resume
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            </Button>
-          </a>
         </div>
-      </div>
+      )}
+
+      {/* ATS Evaluation Scorecard Widget */}
+      {isAllComplete && evaluation && (
+        <AtsScorecard evaluation={evaluation} />
+      )}
     </div>
   );
 }

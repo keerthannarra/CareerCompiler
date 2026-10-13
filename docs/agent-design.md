@@ -1,31 +1,25 @@
 # AI Agent Design
-
-> Status: Phase 3 stub
-
+ 
+> Status: Updated for Phase 5
+ 
 ## Agent Pipeline (BRD §12)
-
-| Agent | Package | Phase | LLM? |
+ 
+| Agent / Component | Package | Primary Task | Model / Engine |
 |---|---|---|---|
-| Resume Parser Agent | `services/resume-parser` | ✅ 1 | No (TexSoup + regex) |
-| Job Description Analyzer | `services/job-intelligence` | 2 | Yes (Groq) |
-| Requirement Matching Agent | `services/matching-engine` | 3 | Hybrid |
-| Evidence Graph Builder | `services/matching-engine` | 3 | No |
-| Tailoring Planner Agent | `services/tailoring-orchestrator` | 3 | Yes (Groq) |
-| Content Optimizer Agent | `services/tailoring-orchestrator` | 3 | Yes (Groq) |
-| Fact Verification Agent | `services/tailoring-orchestrator` | 3 | Yes + rules |
-| LaTeX Rendering Agent | `services/document-engineering` | 4 | No |
-| Compilation & Repair Agent | `services/document-engineering` | 4 | No (repair: rule-based) |
-| ATS Analyzer Agent | `services/ats-evaluation` | 5 | No |
-| Orchestration Agent | `services/orchestration` | 3+ | No (state machine) |
-
+| Resume Parser Agent | `services/resume-parser` | PDF Text extraction & Canonical JSON Structuring | LLaMA 3.3 70B via Groq |
+| Job Intelligence Analyzer | `services/job-intelligence` | Job description parsing, skill & level extraction | LLaMA 3.3 70B via Groq |
+| Matching & Tailoring Agent | `services/matching-engine` | Maps profile evidence to requirements & creates bullet plans | LLaMA 3.3 70B + semantic matcher |
+| Document Rendering Agent | `services/document-engineering` | Jinja2 HTML layout rendering & headless PDF compilation | Playwright / Headless Browser |
+| ATS Analyzer Agent | `services/ats-evaluation` | Computes ATS readability, keyword match, and factual grounding | Deterministic rule engine + embeddings |
+ 
 ## Framework
-
-LangChain + LangGraph for stateful multi-agent pipelines.
-All LLM calls go through `packages/llm-client` (Groq API primary).
-
+ 
+- LangChain + Groq API (`packages/llm-client`) with `llama-3.3-70b-versatile`.
+- Strict Pydantic JSON schema output parsing on all LLM calls.
+- Exponential backoff retry policies via `tenacity`.
+ 
 ## Guardrails
-
-- Every LLM call grounded with retrieved evidence (RAG-style)
-- All outputs schema-validated (JSON schema) before use
-- Fact Verification Agent is a hard gate — no content reaches user without passing
-- All agent inputs/outputs logged (AuditLog)
+ 
+- **Zero Hallucination Tolerance**: Experience, companies, dates, and core metrics must map to the master canonical profile.
+- **Evidence-Grounded Tailoring**: Rephrasing is constrained to highlighting verified relevant achievements and aligning terminology with the target job posting.
+- **Audit Logging**: Every upload, parse, tailoring generation, and document export is persisted with full metadata in PostgreSQL.

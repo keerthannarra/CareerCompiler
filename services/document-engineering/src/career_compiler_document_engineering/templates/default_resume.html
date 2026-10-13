@@ -143,8 +143,12 @@
     {% set contact = profile.get('contact', {}) %}
     <header>
         <div class="header-left">
-            <h1>{{ contact.get('name', {}).get('value') if contact.get('name') else 'N KEERTHAN REDDY' }}</h1>
-            <div class="sub-title">Senior Undergraduate<br>KMIT</div>
+            <h1>{{ (contact.get('name', {}).get('value') if contact.get('name') else '') or profile.get('name', '') or 'CANDIDATE' }}</h1>
+            {% if contact.get('headline') %}
+                <div class="sub-title">{{ contact.get('headline') }}</div>
+            {% elif profile.get('headline') %}
+                <div class="sub-title">{{ profile.get('headline') }}</div>
+            {% endif %}
         </div>
         <div class="header-right">
             {% if contact.get('email') and contact.get('email', {}).get('value') %}
@@ -164,8 +168,8 @@
 
     {# ── SECTIONS ── #}
     {% for sec in profile.get('sections', []) %}
-        {% set sname = sec.get('name', '') | upper %}
-        {% set norm = sec.get('normalized_name', '') | lower %}
+        {% set sname = (sec.get('name') or '') | upper %}
+        {% set norm = (sec.get('normalized_name') or '') | lower %}
 
         {# ── 1. EDUCATION (TABLE STYLE) ── #}
         {% if 'EDUCATION' in sname or norm == 'education' %}
@@ -182,35 +186,28 @@
                 </thead>
                 <tbody>
                     {% for ent in sec.get('entries', []) %}
-                    {% set title = ent.get('title', '') %}
-                    {% set org = ent.get('organization', '') %}
-                    {% set dateraw = ent.get('dates', {}).get('raw') or ent.get('dates', {}).get('end', '') %}
-                    <tr>
-                        {% if 'B.Tech' in title or 'B.Tech' in org or 'B.Tech' in ent.get('subtitle', '') %}
-                            <td>B.Tech</td>
-                            <td>Information Technology</td>
-                            <td>KMIT</td>
-                            <td>2023-Present</td>
-                            <td style="text-align: right;">9.25</td>
-                        {% elif 'PUC' in title or 'PUC' in org or 'RGUKT' in org %}
-                            <td>PUC</td>
-                            <td>Physics, Chemistry, & Mathematics</td>
-                            <td>RGUKT</td>
-                            <td>2023</td>
-                            <td style="text-align: right;">10.0</td>
-                        {% elif 'SSC' in title or 'Vasavi' in org %}
-                            <td>SSC</td>
-                            <td>-</td>
-                            <td>Vasavi Vidyaniketan</td>
-                            <td>2021</td>
-                            <td style="text-align: right;">10.0</td>
-                        {% else %}
-                            <td>{{ title }}</td>
-                            <td>{{ ent.get('subtitle') or '-' }}</td>
-                            <td>{{ org }}</td>
-                            <td>{{ dateraw }}</td>
-                            <td style="text-align: right;">{{ ent.get('gpa') or '-' }}</td>
+                    {% set raw_title = (ent.get('title') or '') %}
+                    {% set org = (ent.get('organization') or '') %}
+                    {% set sub = (ent.get('subtitle') or '') %}
+                    {% set dateraw = ((ent.get('dates') or {}).get('raw') or (ent.get('dates') or {}).get('end') or '') %}
+                    {% set gpa_val = ent.get('gpa') or ent.get('score') or '-' %}
+                    
+                    {# Dynamic extraction of degree and specialization if combined in title #}
+                    {% set degree = raw_title %}
+                    {% set spec = sub %}
+                    {% if not spec or spec == '-' %}
+                        {% if ' ' in raw_title %}
+                            {% set parts = raw_title.split(' ', 1) %}
+                            {% set degree = parts[0] %}
+                            {% set spec = parts[1] %}
                         {% endif %}
+                    {% endif %}
+                    <tr>
+                        <td>{{ degree }}</td>
+                        <td>{{ spec or '-' }}</td>
+                        <td>{{ org }}</td>
+                        <td>{{ dateraw }}</td>
+                        <td style="text-align: right;">{{ gpa_val }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

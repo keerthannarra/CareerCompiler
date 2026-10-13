@@ -43,45 +43,47 @@ class Contact(BaseModel):
 
 
 class Bullet(BaseModel):
-    id: uuid.UUID
-    text: str
-    source_ref: SourceRef
+    id: Optional[uuid.UUID] = None
+    text: Optional[str] = ""
+    source_ref: Optional[SourceRef] = None
 
 
 class DateRange(BaseModel):
-    start: str
-    end: str
-    raw: str
+    start: Optional[str] = ""
+    end: Optional[str] = ""
+    raw: Optional[str] = ""
 
 
 class Entry(BaseModel):
-    id: uuid.UUID
-    title: str = ""
-    organization: str = ""
-    location: str = ""
-    dates: DateRange
-    source_ref: SourceRef
-    bullets: list[Bullet]
+    id: Optional[uuid.UUID] = None
+    title: Optional[str] = ""
+    organization: Optional[str] = ""
+    location: Optional[str] = ""
+    subtitle: Optional[str] = ""
+    gpa: Optional[str] = ""
+    dates: Optional[DateRange] = None
+    source_ref: Optional[SourceRef] = None
+    bullets: list[Bullet] = []
 
 
 class Section(BaseModel):
-    id: uuid.UUID
-    name: str
-    normalized_name: str
-    source_ref: SourceRef
-    entries: list[Entry]
+    id: Optional[uuid.UUID] = None
+    name: Optional[str] = ""
+    normalized_name: Optional[str] = ""
+    source_ref: Optional[SourceRef] = None
+    entries: list[Entry] = []
 
 
 class SkillItem(BaseModel):
-    name: str
-    normalized: str
+    name: Optional[str] = ""
+    normalized: Optional[str] = ""
     source_ref: Optional[SourceRef] = None
 
 
 class SkillGroup(BaseModel):
-    id: uuid.UUID
-    category: str
-    items: list[SkillItem]
+    id: Optional[uuid.UUID] = None
+    category: Optional[str] = ""
+    items: list[SkillItem] = []
     source_ref: Optional[SourceRef] = None
 
 

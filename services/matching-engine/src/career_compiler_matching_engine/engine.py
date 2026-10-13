@@ -9,9 +9,11 @@ logger = logging.getLogger(__name__)
 class ProposedChange(BaseModel):
     requirement_id: str = Field(description="ID of the job requirement this change addresses")
     evidence_id: str = Field(description="ID of the resume evidence supporting this change")
-    change_type: str = Field(description="Type of change: reword_bullet, reorder_bullet, add_keyword, add_bullet, remove_bullet")
-    original_text: str = Field(description="Original resume text being changed (or empty if adding new)")
-    proposed_text: str = Field(description="The new proposed text")
+    section_name: Optional[str] = Field(default="", description="Name of the section where this change applies, e.g. 'Work Experience', 'Projects', or 'Skills'")
+    entry_title: Optional[str] = Field(default="", description="Title/company of the entry being modified, e.g. 'Deutsche Boerse Group'")
+    change_type: str = Field(description="Type of change: strictly 'reword_bullet' or 'add_keyword'")
+    original_text: str = Field(description="EXACT verbatim original resume text being changed. Must NOT be empty for reword_bullet.")
+    proposed_text: str = Field(description="The tailored proposed text")
     rationale: str = Field(description="Human-readable explanation of why this change is proposed based on evidence")
     evidence_text: str = Field(description="The actual evidence text from the resume used to ground this change")
 
@@ -137,14 +139,25 @@ class MatchingEngine:
         profile_text = _compact_canonical_profile(canonical_profile)
 
         prompt = f"""
-        You are an expert technical resume writer.
+        You are an expert technical resume writer adhering strictly to ZERO HALLUCINATION standards.
         Your task is to analyze a candidate's resume (Canonical Profile) and a Job Description.
-        Generate a list of proposed changes to the resume to better match the job requirements.
+        Generate a concise list of proposed improvements to the resume to better match the target role.
 
-        CRITICAL RULES:
-        1. NEVER invent or hallucinate facts, skills, or experiences.
-        2. EVERY proposed change MUST be grounded in existing evidence from the Canonical Profile.
-        3. Provide clear rationale for each change.
+        CRITICAL ZERO-HALLUCINATION & IMMUTABILITY CONSTRAINTS:
+        1. WORK EXPERIENCE IS AN IMMUTABLE RECORD:
+           - NEVER synthesize, invent, or add new accomplishments or bullet points under Work Experience.
+           - NEVER transplant or move bullets, projects, or tasks from Projects, Coursework, or Extracurriculars into Work Experience.
+           - NEVER synthesize work experience from skill keywords (e.g., if 'PostgreSQL' is listed under skills, DO NOT create a fake bullet claiming they implemented PostgreSQL databases at their employer).
+           - Under Work Experience, you may ONLY propose 'reword_bullet' on an existing bullet point.
+        2. ONLY REWORD EXISTING BULLET POINTS IN-PLACE (change_type='reword_bullet'):
+           - 'original_text' MUST be the exact verbatim text of an existing bullet in that specific entry.
+           - 'section_name' and 'entry_title' MUST identify the exact entry containing that bullet.
+           - You may only polish wording, highlight relevant aspects (like CI/CD, APIs, design patterns) if already substantiated in that bullet, or strengthen action verbs.
+        3. RELEVANCE TO TARGET ROLE:
+           - Only propose changes that genuinely align with the target job description.
+           - DO NOT propose changes for unrelated projects or technologies that do not fit the job description.
+        4. TECHNICAL SKILLS (change_type='add_keyword'):
+           - You may propose 'add_keyword' to a skill category ONLY if the candidate has explicitly demonstrated or listed that skill elsewhere in their profile (e.g., highlighting 'Java' in Backend if it is in Languages).
 
         ## Job Description
         {jd_text}
@@ -153,7 +166,7 @@ class MatchingEngine:
         {profile_text}
         """
 
-        system_prompt = "You are an AI resume tailoring assistant. You only output valid JSON strictly conforming to the requested schema."
+        system_prompt = "You are an AI resume tailoring assistant. You only output valid JSON strictly conforming to the requested schema. You never hallucinate or invent new work experience."
 
         result = await self.llm.astructured_chat(
             prompt=prompt,
@@ -162,3 +175,4 @@ class MatchingEngine:
         )
 
         return result
+

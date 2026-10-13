@@ -5,6 +5,8 @@ Workers process long-running tasks: parsing, matching, compilation, evaluation.
 
 from celery import Celery
 
+from kombu import Queue
+
 from .config import get_settings
 
 settings = get_settings()
@@ -24,9 +26,17 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,  # fair task distribution
+    task_queues=[
+        Queue("celery"),
+        Queue("parsing"),
+        Queue("matching"),
+        Queue("compilation"),
+        Queue("evaluation"),
+    ],
     task_routes={
         "src.tasks.parse_resume": {"queue": "parsing"},
         "src.tasks.analyze_job": {"queue": "parsing"},
+        "src.tasks.generate_tailoring_plan": {"queue": "matching"},
         "src.tasks.match_requirements": {"queue": "matching"},
         "src.tasks.compile_latex": {"queue": "compilation"},
         "src.tasks.evaluate_resume": {"queue": "evaluation"},
@@ -139,6 +149,9 @@ def task_generate_tailoring_plan(self, plan_id: str):
     import asyncio
     from src.database import AsyncSessionLocal
     from src.models import TailoringPlan, CanonicalProfile, JobDescription
+    import importlib
+    import career_compiler_matching_engine.engine
+    importlib.reload(career_compiler_matching_engine.engine)
     from career_compiler_matching_engine.engine import MatchingEngine
     
     async def _generate():
@@ -201,6 +214,9 @@ def task_compile_latex(self, document_id: str):
     from src.models import CompiledResume, TailoringPlan, MasterResume
     
     logger = logging.getLogger(__name__)
+    import importlib
+    import career_compiler_document_engineering.templater
+    importlib.reload(career_compiler_document_engineering.templater)
     from career_compiler_document_engineering.templater import apply_tailoring_plan
     from career_compiler_document_engineering.compiler import HtmlToPdfCompiler
     from career_compiler_document_engineering.validator import DocumentValidator
@@ -275,6 +291,20 @@ def task_compile_latex(self, document_id: str):
                 if comp_result["status"] == "success":
                     doc.status = "complete"
                     doc.pdf_file_path = comp_result["pdf_path"]
+                    
+                    # 4. ATS Evaluation (Phase 5)
+                    try:
+                        from src.models import JobDescription
+                        from src.services.ats_evaluator import evaluate_ats
+                        job = await session.get(JobDescription, plan.job_id)
+                        evaluation = evaluate_ats(
+                            canonical_profile=profile.profile_json or {},
+                            job_data=job.extracted_data or {"raw_text": job.raw_text} if job else {},
+                            tailoring_items=plan.items or []
+                        )
+                        validation_res["ats_evaluation"] = evaluation
+                    except Exception as eval_err:
+                        logger.warning(f"ATS evaluation failed: {eval_err}")
                 else:
                     doc.status = "failed"
                     # Include error in validation results
@@ -285,6 +315,7 @@ def task_compile_latex(self, document_id: str):
             except Exception as e:
                 logger.exception(f"Failed to compile LaTeX for doc {document_id}")
                 doc.status = "failed"
+                doc.validation_results = {"compilation_error": str(e)}
                 await session.commit()
 
     asyncio.run(_compile())

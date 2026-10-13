@@ -25,6 +25,12 @@ export default function RootLayout({
             <a href="/" className="nav-link">
               Upload New Resume
             </a>
+            <a href="/resumes" className="nav-link">
+              My Resumes
+            </a>
+            <a href="/docs" className="nav-link">
+              Documentation
+            </a>
             <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', borderLeft: '1px solid var(--color-border)', paddingLeft: '1.25rem' }}>
               AI Resume Engineering
             </div>

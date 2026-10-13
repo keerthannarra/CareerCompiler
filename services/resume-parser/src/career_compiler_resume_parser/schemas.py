@@ -11,33 +11,33 @@ class ParsedContact(BaseModel):
     location: Optional[str] = Field(None, description="City, State, or Country")
 
 class ParsedBullet(BaseModel):
-    text: str = Field(description="A single bullet point describing an achievement or responsibility")
+    text: str = Field(default="", description="A single bullet point describing an achievement or responsibility")
 
 class ParsedDateRange(BaseModel):
-    start: str = Field(description="Start date (e.g., 'Jan 2020')")
-    end: str = Field(description="End date (e.g., 'Present' or 'Dec 2022')")
-    raw: str = Field(description="The raw date string from the resume")
+    start: Optional[str] = Field(default="", description="Start date (e.g., 'Jan 2020')")
+    end: Optional[str] = Field(default="", description="End date (e.g., 'Present' or 'Dec 2022')")
+    raw: Optional[str] = Field(default="", description="The raw date string from the resume")
 
 class ParsedEntry(BaseModel):
-    title: str = Field(description="Degree, job title, or project name")
-    organization: str = Field(description="Institute, company, or university name")
+    title: Optional[str] = Field(default="", description="Degree, job title, or project name")
+    organization: Optional[str] = Field(default="", description="Institute, company, or university name")
     location: Optional[str] = Field(default="", description="Location of the entry")
     subtitle: Optional[str] = Field(default="", description="Specialization, supervisor, or sub-details")
     gpa: Optional[str] = Field(default="", description="CPI, GPA, or percentage if present (e.g. '9.25' or '10.0')")
-    dates: ParsedDateRange
+    dates: Optional[ParsedDateRange] = Field(default=None, description="Start and end dates")
     bullets: List[ParsedBullet] = Field(default_factory=list)
 
 class ParsedSection(BaseModel):
-    name: str = Field(description="Original section name (e.g., 'Professional Experience', 'Education', 'Positions of Responsibility', 'Achievements')")
-    normalized_name: str = Field(description="Normalized section name (one of: experience, education, projects, leadership, achievements, certifications, summary)")
+    name: Optional[str] = Field(default="Experience", description="Original section name (e.g., 'Professional Experience', 'Education', 'Positions of Responsibility', 'Achievements')")
+    normalized_name: Optional[str] = Field(default="experience", description="Normalized section name (one of: experience, education, projects, leadership, achievements, certifications, summary)")
     entries: List[ParsedEntry] = Field(default_factory=list)
 
 class ParsedSkillItem(BaseModel):
-    name: str = Field(description="Name of the skill")
-    normalized: str = Field(description="Lowercase, standardized name of the skill")
+    name: Optional[str] = Field(default="", description="Name of the skill")
+    normalized: Optional[str] = Field(default="", description="Lowercase, standardized name of the skill")
 
 class ParsedSkillGroup(BaseModel):
-    category: str = Field(description="Category of skills (e.g., 'Languages', 'Frameworks')")
+    category: Optional[str] = Field(default="Technical Skills", description="Category of skills (e.g., 'Languages', 'Frameworks')")
     items: List[ParsedSkillItem] = Field(default_factory=list)
 
 class ParsedProfile(BaseModel):

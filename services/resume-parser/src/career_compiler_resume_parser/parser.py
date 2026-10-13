@@ -43,11 +43,17 @@ class PdfParser:
             reader = PdfReader(io.BytesIO(pdf_bytes))
             text = []
             for page in reader.pages:
-                text.append(page.extract_text())
-            return "\n".join(text)
+                page_text = page.extract_text()
+                if page_text:
+                    text.append(page_text)
+            extracted = "\n".join(text).strip()
+            if not extracted:
+                raise ValueError("No extractable text found in PDF. The document may be scanned images without text layer or empty.")
+            # Bound input size to avoid LLM context exhaustion on massive PDFs
+            return extracted[:25000]
         except Exception as e:
             logger.error(f"Failed to extract text from PDF: {e}")
-            raise Exception("Invalid PDF or failed to extract text")
+            raise Exception(f"Failed to extract text from PDF: {e}")
     
     def _hydrate_with_ids(self, profile: ParsedProfile, filename: str) -> Dict[str, Any]:
         """Convert ParsedProfile to CanonicalProfile JSON with UUIDs and source refs."""
@@ -59,7 +65,10 @@ class PdfParser:
         def _sourced(value):
             if value is None:
                 return None
-            return {"value": value, "source_ref": _dummy_ref()}
+            return {"value": str(value), "source_ref": _dummy_ref()}
+
+        sections_data = data.get("sections") or []
+        skills_data = data.get("skills") or []
 
         hydrated = {
             "contact": {},
@@ -73,9 +82,9 @@ class PdfParser:
             "metadata": {
                 "parsed_at": "now",
                 "source_file": filename,
-                "total_sections": len(data.get("sections", [])),
-                "total_bullets": sum(len(e.get("bullets", [])) for s in data.get("sections", []) for e in s.get("entries", [])),
-                "total_skills": sum(len(g.get("items", [])) for g in data.get("skills", [])),
+                "total_sections": len(sections_data),
+                "total_bullets": sum(len(e.get("bullets") or []) for s in sections_data for e in (s.get("entries") or [])),
+                "total_skills": sum(len(g.get("items") or []) for g in skills_data),
                 "parse_errors": []
             }
         }
@@ -83,57 +92,78 @@ class PdfParser:
         # Hydrate Contact
         contact = data.get("contact") or {}
         for k, v in contact.items():
-            hydrated["contact"][k] = _sourced(v)
+            if v:
+                hydrated["contact"][k] = _sourced(v)
             
         # Hydrate Sections
-        for sec in data.get("sections", []):
+        for sec in sections_data:
             hydrated_sec = {
                 "id": str(uuid.uuid4()),
-                "name": sec.get("name"),
-                "normalized_name": sec.get("normalized_name"),
+                "name": sec.get("name") or "Experience",
+                "normalized_name": sec.get("normalized_name") or "experience",
                 "source_ref": _dummy_ref(),
                 "entries": []
             }
             
-            for ent in sec.get("entries", []):
+            for ent in (sec.get("entries") or []):
+                dates_dict = ent.get("dates") or {}
+                if isinstance(dates_dict, dict):
+                    dates_val = {
+                        "start": dates_dict.get("start") or "",
+                        "end": dates_dict.get("end") or "",
+                        "raw": dates_dict.get("raw") or ""
+                    }
+                else:
+                    dates_val = {"start": "", "end": "", "raw": str(dates_dict)}
+
                 hydrated_ent = {
                     "id": str(uuid.uuid4()),
-                    "title": ent.get("title", ""),
-                    "organization": ent.get("organization", ""),
-                    "location": ent.get("location", ""),
-                    "subtitle": ent.get("subtitle", ""),
-                    "gpa": ent.get("gpa", ""),
-                    "dates": ent.get("dates", {}),
+                    "title": ent.get("title") or "",
+                    "organization": ent.get("organization") or "",
+                    "location": ent.get("location") or "",
+                    "subtitle": ent.get("subtitle") or "",
+                    "gpa": ent.get("gpa") or "",
+                    "dates": dates_val,
                     "source_ref": _dummy_ref(),
                     "bullets": []
                 }
                 
-                for b in ent.get("bullets", []):
-                    hydrated_ent["bullets"].append({
-                        "id": str(uuid.uuid4()),
-                        "text": b.get("text"),
-                        "source_ref": _dummy_ref()
-                    })
+                for b in (ent.get("bullets") or []):
+                    btext = b.get("text") if isinstance(b, dict) else str(b)
+                    if btext:
+                        hydrated_ent["bullets"].append({
+                            "id": str(uuid.uuid4()),
+                            "text": btext,
+                            "source_ref": _dummy_ref()
+                        })
                 
                 hydrated_sec["entries"].append(hydrated_ent)
                 
             hydrated["sections"].append(hydrated_sec)
             
         # Hydrate Skills
-        for grp in data.get("skills", []):
+        for grp in skills_data:
             hydrated_grp = {
                 "id": str(uuid.uuid4()),
-                "category": grp.get("category"),
+                "category": grp.get("category") or "Technical Skills",
                 "source_ref": _dummy_ref(),
                 "items": []
             }
             
-            for item in grp.get("items", []):
-                hydrated_grp["items"].append({
-                    "name": item.get("name"),
-                    "normalized": item.get("normalized"),
-                    "source_ref": _dummy_ref()
-                })
+            for item in (grp.get("items") or []):
+                if isinstance(item, dict):
+                    iname = item.get("name") or ""
+                    inorm = item.get("normalized") or iname.lower()
+                else:
+                    iname = str(item)
+                    inorm = iname.lower()
+
+                if iname:
+                    hydrated_grp["items"].append({
+                        "name": iname,
+                        "normalized": inorm,
+                        "source_ref": _dummy_ref()
+                    })
                 
             hydrated["skills"].append(hydrated_grp)
             
