@@ -1,0 +1,13 @@
+[project]
+name = "career_compiler_resume_parser"
+version = "0.1.0"
+description = "Extracts text from PDF and structures into CanonicalProfile"
+dependencies = [
+    "PyPDF2",
+    "pydantic",
+    "career_compiler_job_intelligence"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

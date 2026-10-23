@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Resume</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 10mm 14mm 10mm 14mm;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Times New Roman", Times, Georgia, serif;
+            color: #111;
+            line-height: 1.28;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            font-size: 11pt;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+        }
+        .header-left h1 {
+            font-size: 15pt;
+            margin: 0 0 2px 0;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .header-left .sub-title {
+            font-size: 10.5pt;
+            color: #222;
+            margin: 0;
+            line-height: 1.25;
+        }
+        .header-right {
+            text-align: right;
+            font-size: 10pt;
+            line-height: 1.35;
+        }
+        .header-right a {
+            color: #111;
+            text-decoration: none;
+        }
+        .section-bar {
+            background-color: #c9cdd2;
+            color: #111;
+            font-weight: bold;
+            font-size: 9.5pt;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 2px 5px;
+            margin: 6px 0 4px 0;
+            width: 100%;
+        }
+        
+        /* Education Table Style */
+        .edu-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10pt;
+            margin-bottom: 4px;
+        }
+        .edu-table th {
+            text-align: left;
+            border-bottom: 1px solid #111;
+            padding: 2px 4px;
+            font-weight: bold;
+        }
+        .edu-table td {
+            padding: 2px 4px;
+            vertical-align: top;
+        }
+        .edu-table tr:first-child td {
+            padding-top: 3px;
+        }
+
+        /* Generic Section & Entries */
+        .entry {
+            margin-bottom: 4px;
+            page-break-inside: avoid;
+        }
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 10.5pt;
+        }
+        .entry-title {
+            font-weight: bold;
+        }
+        .entry-subtitle {
+            font-style: italic;
+        }
+        .entry-date {
+            font-style: italic;
+            font-size: 10pt;
+            white-space: nowrap;
+        }
+        ul.bullet-list {
+            margin: 1.5px 0 2px 18px;
+            padding: 0;
+            list-style-type: disc;
+        }
+        ul.bullet-list li {
+            margin-bottom: 1.5px;
+            text-align: justify;
+            font-size: 10pt;
+            line-height: 1.25;
+        }
+        /* Nested sub-bullets */
+        ul.bullet-list ul {
+            margin: 1px 0 1px 18px;
+            padding: 0;
+            list-style-type: circle;
+        }
+
+        /* Skills specific */
+        .skills-list {
+            margin: 2px 0 0 14px;
+            padding: 0;
+            list-style-type: disc;
+        }
+        .skills-list li {
+            font-size: 10pt;
+            margin-bottom: 1.5px;
+            line-height: 1.25;
+        }
+        .skill-cat {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    {# ── HEADER ── #}
+    {% set contact = profile.get('contact', {}) %}
+    <header>
+        <div class="header-left">
+            <h1>{{ (contact.get('name', {}).get('value') if contact.get('name') else '') or profile.get('name', '') or 'CANDIDATE' }}</h1>
+            {% if contact.get('headline') %}
+                <div class="sub-title">{{ contact.get('headline') }}</div>
+            {% elif profile.get('headline') %}
+                <div class="sub-title">{{ profile.get('headline') }}</div>
+            {% endif %}
+        </div>
+        <div class="header-right">
+            {% if contact.get('email') and contact.get('email', {}).get('value') %}
+                <div>{{ contact.get('email', {}).get('value') }}</div>
+            {% endif %}
+            {% if contact.get('phone') and contact.get('phone', {}).get('value') %}
+                <div>{{ contact.get('phone', {}).get('value') }}</div>
+            {% endif %}
+            {% if contact.get('linkedin') and contact.get('linkedin', {}).get('value') %}
+                <div>{{ contact.get('linkedin', {}).get('value') }}</div>
+            {% endif %}
+            {% if contact.get('github') and contact.get('github', {}).get('value') %}
+                <div>{{ contact.get('github', {}).get('value') }}</div>
+            {% endif %}
+        </div>
+    </header>
+
+    {# ── SECTIONS ── #}
+    {% for sec in profile.get('sections', []) %}
+        {% set sname = (sec.get('name') or '') | upper %}
+        {% set norm = (sec.get('normalized_name') or '') | lower %}
+
+        {# ── 1. EDUCATION (TABLE STYLE) ── #}
+        {% if 'EDUCATION' in sname or norm == 'education' %}
+            <div class="section-bar">EDUCATION</div>
+            <table class="edu-table">
+                <thead>
+                    <tr>
+                        <th style="width: 18%;">Degree</th>
+                        <th style="width: 38%;">Specialization</th>
+                        <th style="width: 24%;">Institute</th>
+                        <th style="width: 12%;">Year</th>
+                        <th style="width: 8%; text-align: right;">CPI</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ent in sec.get('entries', []) %}
+                    {% set raw_title = (ent.get('title') or '') %}
+                    {% set org = (ent.get('organization') or '') %}
+                    {% set sub = (ent.get('subtitle') or '') %}
+                    {% set dateraw = ((ent.get('dates') or {}).get('raw') or (ent.get('dates') or {}).get('end') or '') %}
+                    {% set gpa_val = ent.get('gpa') or ent.get('score') or '-' %}
+                    
+                    {# Dynamic extraction of degree and specialization if combined in title #}
+                    {% set degree = raw_title %}
+                    {% set spec = sub %}
+                    {% if not spec or spec == '-' %}
+                        {% if ' ' in raw_title %}
+                            {% set parts = raw_title.split(' ', 1) %}
+                            {% set degree = parts[0] %}
+                            {% set spec = parts[1] %}
+                        {% endif %}
+                    {% endif %}
+                    <tr>
+                        <td>{{ degree }}</td>
+                        <td>{{ spec or '-' }}</td>
+                        <td>{{ org }}</td>
+                        <td>{{ dateraw }}</td>
+                        <td style="text-align: right;">{{ gpa_val }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        {# ── 2. OTHER STANDARD SECTIONS (Experience, Projects, Leadership, Achievements) ── #}
+        {% elif sec.get('entries') %}
+            <div class="section-bar">{{ sname }}</div>
+            {% for ent in sec.get('entries', []) %}
+            <div class="entry">
+                <div class="entry-header">
+                    <div>
+                        • <span class="entry-title">{{ ent.get('title', '') }}</span>
+                        {% if ent.get('organization') %}
+                            <span class="entry-subtitle">[{{ ent.get('organization') }}]</span>
+                        {% endif %}
+                    </div>
+                    <div class="entry-date">
+                        {% if ent.get('dates') and (ent.get('dates', {}).get('raw') or ent.get('dates', {}).get('start')) %}
+                            {{ ent.get('dates', {}).get('raw') or (ent.get('dates', {}).get('start', '') ~ ' – ' ~ ent.get('dates', {}).get('end', '')) }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% if ent.get('bullets') %}
+                <ul class="bullet-list">
+                    {% for b in ent.get('bullets', []) %}
+                    {% set btext = b.get('text', '') if b is mapping else b|string %}
+                    <li>
+                        {# Handle nested multi-part sentences cleanly #}
+                        {{ btext }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+
+    {# ── TECHNICAL SKILLS (at bottom like original resume) ── #}
+    {% set skills = profile.get('skills', []) %}
+    {% if skills %}
+        <div class="section-bar">TECHNICAL SKILLS</div>
+        <ul class="skills-list">
+            {% for grp in skills %}
+            <li>
+                <span class="skill-cat">{{ grp.get('category', 'Skills') }}:</span>
+                {% set item_names = [] %}
+                {% for item in grp.get('items', []) %}
+                    {% if item is mapping %}
+                        {% set _ = item_names.append(item.get('name', '')) %}
+                    {% else %}
+                        {% set _ = item_names.append(item|string) %}
+                    {% endif %}
+                {% endfor %}
+                {{ item_names | reject('equalto', '') | join(', ') }}
+            </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+</body>
+</html>
